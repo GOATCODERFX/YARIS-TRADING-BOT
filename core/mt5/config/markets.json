@@ -1,0 +1,24 @@
+{
+  "markets": {
+    "NAS100": {
+      "enabled": true,
+      "symbol": "NAS100"
+    },
+    "BTCUSD": {
+      "enabled": true,
+      "symbol": "BTCUSD"
+    },
+    "US30": {
+      "enabled": true,
+      "symbol": "US30"
+    },
+    "GER30": {
+      "enabled": true,
+      "symbol": "GER30"
+    },
+    "GOLD": {
+      "enabled": true,
+      "symbol": "XAUUSD"
+    }
+  }
+}
