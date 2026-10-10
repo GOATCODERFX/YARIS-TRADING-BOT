@@ -1,3 +1,4 @@
+
 """
 YARIS Market Scanner
 
@@ -14,16 +15,34 @@ class MarketScanner:
         self.connector = connector
 
     def get_price(self, symbol):
-        """Get the latest bid/ask price for a symbol."""
+        """Get the latest bid/ask price for a broker symbol."""
 
         if not self.connector.is_connected():
             print("YARIS: MT5 is not connected.")
             return None
 
+        info = mt5.symbol_info(symbol)
+
+        if info is None:
+            print(f"YARIS: Symbol {symbol} is unavailable.")
+            print(f"MT5 error: {mt5.last_error()}")
+            return None
+
+        if not info.visible:
+            if not mt5.symbol_select(symbol, True):
+                print(f"YARIS: Could not select {symbol}.")
+                print(f"MT5 error: {mt5.last_error()}")
+                return None
+
         tick = mt5.symbol_info_tick(symbol)
 
         if tick is None:
             print(f"YARIS: No market data for {symbol}.")
+            print(f"MT5 error: {mt5.last_error()}")
+            return None
+
+        if tick.bid <= 0 or tick.ask <= 0:
+            print(f"YARIS: Invalid bid/ask for {symbol}.")
             return None
 
         return {
@@ -34,7 +53,7 @@ class MarketScanner:
         }
 
     def scan(self, symbols):
-        """Scan the selected symbols."""
+        """Scan all configured broker symbols."""
 
         results = []
 
