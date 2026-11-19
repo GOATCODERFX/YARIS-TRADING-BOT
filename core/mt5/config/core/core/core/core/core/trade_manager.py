@@ -1,17 +1,20 @@
-"""
-YARIS Trade Manager
 
-Handles trade planning and position management.
-Live order execution will be enabled only after
-the strategy and risk systems have been tested.
+"""
+YARIS Trading Bot
+Trade planning and position management.
+
+Order execution remains disabled during development
+and testing. No live orders can be sent by this version.
 """
 
 
 class TradeManager:
 
-    def __init__(self, mt5_connector):
+    def __init__(self, mt5_connector, max_positions=5):
         self.mt5 = mt5_connector
+        self.max_positions = max_positions
         self.live_trading_enabled = False
+        self.trade_history = []
 
     def create_trade_plan(
         self,
@@ -21,47 +24,82 @@ class TradeManager:
         stop_loss,
         take_profit
     ):
-        """Create a trade plan without sending an order."""
+        """Validate and create a trade plan."""
+
+        if not symbol:
+            raise ValueError("A trading symbol is required.")
+
+        if direction not in ("BUY", "SELL"):
+            raise ValueError("Direction must be BUY or SELL.")
+
+        values = (entry, stop_loss, take_profit)
+
+        if any(
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            for value in values
+        ):
+            raise ValueError("Prices must be numeric.")
+
+        if any(value <= 0 for value in values):
+            raise ValueError("Prices must be positive.")
+
+        if direction == "BUY":
+            if not stop_loss < entry < take_profit:
+                raise ValueError(
+                    "BUY requires stop loss < entry < take profit."
+                )
+
+        if direction == "SELL":
+            if not take_profit < entry < stop_loss:
+                raise ValueError(
+                    "SELL requires take profit < entry < stop loss."
+                )
 
         return {
             "symbol": symbol,
             "direction": direction,
-            "entry": entry,
-            "stop_loss": stop_loss,
-            "take_profit": take_profit,
+            "entry": float(entry),
+            "stop_loss": float(stop_loss),
+            "take_profit": float(take_profit),
             "status": "PLANNED"
         }
 
     def execute(self, trade_plan):
         """
-        Execute a trade only when live trading has
-        explicitly been enabled.
+        Execution is deliberately blocked.
+        This version cannot send MT5 orders.
         """
 
-        if not self.live_trading_enabled:
-            print(
-                "YARIS: LIVE TRADING DISABLED. "
-                "Trade plan was not sent to MT5."
-            )
-            return False
-
-        # Actual MT5 order execution will be added
-        # after testing and validation.
         print(
-            f"YARIS: Execution requested for "
-            f"{trade_plan['symbol']}"
+            "YARIS: ORDER EXECUTION BLOCKED. "
+            "Testing and validation are still required."
         )
 
         return False
 
-    def enable_live_trading(self):
-        """Enable live execution after testing."""
+    def get_open_positions(self):
+        """Return current broker positions when connected."""
 
-        self.live_trading_enabled = True
-        print("YARIS: LIVE TRADING ENABLED.")
+        if not self.mt5 or not self.mt5.is_connected():
+            return []
+
+        return self.mt5.get_open_positions()
+
+    def can_open_position(self):
+        """Check the maximum simultaneous position limit."""
+
+        positions = self.get_open_positions()
+
+        return len(positions) < self.max_positions
+
+    def get_trade_history(self):
+        """Return recorded trade history."""
+
+        return list(self.trade_history)
 
     def disable_live_trading(self):
-        """Disable live execution."""
+        """Keep order execution disabled."""
 
         self.live_trading_enabled = False
         print("YARIS: LIVE TRADING DISABLED.")
