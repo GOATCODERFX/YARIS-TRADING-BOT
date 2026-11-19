@@ -1,10 +1,9 @@
 
 """
 YARIS Trading Bot
-Main controller for the automated trading system.
+Main controller with integrated risk checks.
 
-This development version connects to MT5, scans enabled
-markets and analyses signals. It does NOT execute orders.
+Order execution remains disabled during development.
 """
 
 import time
@@ -25,13 +24,20 @@ class YARIS:
         self.market_selector = MarketSelector()
         self.market_scanner = MarketScanner(self.mt5)
         self.strategy = StrategyEngine()
+
         self.risk_manager = RiskManager(max_positions=5)
+
         self.trade_manager = TradeManager(
             self.mt5,
             max_positions=5
         )
 
         self.running = False
+
+        # Temporary development counters.
+        # These are not broker-wide daily statistics.
+        self.daily_trades = 0
+        self.daily_loss_pct = 0.0
 
     def start(self):
 
@@ -40,11 +46,10 @@ class YARIS:
         print("       Automated Trading Engine")
         print("=" * 40)
 
-        print("Initializing YARIS components...")
+        print("Initializing YARIS...")
 
         if not self.mt5.connect():
             print("MT5 connection failed.")
-            print("Check your MT5 terminal and account.")
             return
 
         print("MT5 connected successfully.")
@@ -69,7 +74,7 @@ class YARIS:
                 for market in selected_markets
             ]
 
-            print("Enabled markets:")
+            print("YARIS markets:")
 
             for market in selected_markets:
                 print(
@@ -96,6 +101,17 @@ class YARIS:
                     market_data
                 )
 
+                # Retrieve actual open positions.
+                open_positions = (
+                    self.trade_manager.get_open_positions()
+                )
+
+                position_count = len(open_positions)
+
+                print(
+                    f"Open positions: {position_count}/5"
+                )
+
                 for symbol, signal in signals.items():
 
                     signal_value = getattr(
@@ -104,21 +120,30 @@ class YARIS:
                         signal
                     )
 
-                    print(
-                        f"{symbol}: {signal_value}"
+                    print(f"{symbol}: {signal_value}")
+
+                    approved, reason = (
+                        self.risk_manager.can_trade(
+                            open_positions=position_count,
+                            daily_trades=self.daily_trades,
+                            signal=signal,
+                            daily_loss_pct=self.daily_loss_pct
+                        )
                     )
 
-                    if signal_value == "WAIT":
+                    if not approved:
+                        print(
+                            f"{symbol}: REJECTED - {reason}"
+                        )
                         continue
 
                     print(
-                        f"{symbol}: Signal detected. "
-                        "Order execution remains disabled."
+                        f"{symbol}: Risk checks passed. "
+                        "Order execution is still disabled."
                     )
 
                 print(
-                    "YARIS scan complete. "
-                    "Next scan in 60 seconds."
+                    "Scan complete. Next scan in 60 seconds."
                 )
 
                 time.sleep(60)
